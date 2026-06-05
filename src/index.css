@@ -1,3 +1,137 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@400;600;700&display=swap');
+
+/* stylelint-disable at-rule-no-unknown */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── Global base ── */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-[#fdf7f4] text-slate-900;
+  }
+
+  /* Scrollbar styling to match warm palette */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #fdf7f4;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #e8dcd7;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #b89080;
+  }
+}
+
+/* ── Reusable component classes ── */
+@layer components {
+
+  /* Primary button — matches Public.tsx CTA */
+  .btn-primary {
+    @apply inline-flex items-center gap-2 rounded-lg bg-[#5C2200] px-5 py-2.5
+           text-sm font-medium text-white shadow-sm
+           hover:bg-[#7A3010] transition-colors;
+  }
+
+  /* Ghost / outline button */
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 rounded-lg px-5 py-2.5
+           text-sm font-medium text-[#5C2200] bg-white
+           border border-[#e8dcd7] hover:bg-[#fdf7f4] transition-colors;
+  }
+
+  /* Dashboard card */
+  .card {
+    @apply bg-white rounded-xl border border-[#e8dcd7] shadow-sm;
+  }
+
+  /* Card header strip */
+  .card-header {
+    @apply px-6 py-4 border-b border-[#e8dcd7];
+  }
+
+  /* Section eyebrow label — same style as Public.tsx feature labels */
+  .label-eyebrow {
+    @apply text-xs font-semibold uppercase tracking-widest text-[#5C2200];
+  }
+
+  /* Section heading */
+  .section-heading {
+    @apply text-base font-semibold text-slate-900;
+  }
+
+  /* Table header cell */
+  .th {
+    @apply px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#b89080]
+           bg-[#fdf7f4];
+  }
+
+  /* Table body row */
+  .tr {
+    @apply hover:bg-[#fdf7f4] transition-colors;
+  }
+
+  /* Table data cell */
+  .td {
+    @apply px-6 py-4;
+  }
+
+  /* Status badge base */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5
+           text-xs font-semibold rounded-full;
+  }
+
+  /* Legacy — keep existing utility names working */
+  .btn-secondary {
+    @apply btn-ghost;
+  }
+  .gold-divider {
+    @apply border-t border-[#e8dcd7];
+  }
+  .heading {
+    @apply font-serif text-4xl tracking-wide text-white;
+  }
+
+  /* Page banner shared pattern */
+  .page-banner {
+    @apply relative overflow-hidden rounded-2xl bg-[#5C2200];
+  }
+  .page-banner-overlay {
+    @apply absolute inset-0 bg-gradient-to-r from-[#5C2200]/90 via-[#5C2200]/70 to-[#5C2200]/50;
+  }
+  .page-banner-content {
+    @apply relative px-8 py-7;
+  }
+}
+
+/* ── Utilities ── */
+@layer utilities {
+  .text-brand {
+    color: #5C2200;
+  }
+  .bg-brand {
+    background-color: #5C2200;
+  }
+  .border-warm {
+    border-color: #e8dcd7;
+  }
+  .bg-warm {
+    background-color: #fdf7f4;
+  }
+}

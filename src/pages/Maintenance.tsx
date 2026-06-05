@@ -1,292 +1,500 @@
-import { Wrench, AlertTriangle, Clock, CheckCircle, Plus, Filter } from 'lucide-react';
+import { useEffect, useState } from "react";
+import {
+  Wrench,
+  AlertTriangle,
+  Clock,
+  CheckCircle,
+  Plus,
+  Filter,
+  Loader2,
+  Trash2,
+} from "lucide-react";
+import { supabase } from "../lib/supabase";
+import { PopupModal } from "../components/ui/PopupModal";
 
-const maintenanceRequests = [
-  {
-    id: 1,
-    ticketNumber: 'MAINT-001',
-    room: '304B',
-    issue: 'Air conditioning not working',
-    description: 'AC unit not cooling properly, making loud noises',
-    reportedBy: 'Sarah Johnson',
-    reportedDate: '2024-01-20 09:30 AM',
-    priority: 'high',
-    status: 'in-progress',
-    assignedTo: 'John Technician',
-  },
-  {
-    id: 2,
-    ticketNumber: 'MAINT-002',
-    room: '201A',
-    issue: 'Leaking faucet',
-    description: 'Bathroom sink faucet dripping continuously',
-    reportedBy: 'Mike Chen',
-    reportedDate: '2024-01-20 02:15 PM',
-    priority: 'medium',
-    status: 'pending',
-    assignedTo: null,
-  },
-  {
-    id: 3,
-    ticketNumber: 'MAINT-003',
-    room: '105C',
-    issue: 'Door lock malfunction',
-    description: 'Electronic door lock not responding to keycard',
-    reportedBy: 'Emma Wilson',
-    reportedDate: '2024-01-19 08:00 PM',
-    priority: 'high',
-    status: 'pending',
-    assignedTo: null,
-  },
-  {
-    id: 4,
-    ticketNumber: 'MAINT-004',
-    room: '402D',
-    issue: 'Light bulb replacement',
-    description: 'Ceiling light not working in bedroom',
-    reportedBy: 'David Brown',
-    reportedDate: '2024-01-20 11:00 AM',
-    priority: 'low',
-    status: 'completed',
-    assignedTo: 'Mike Electrician',
-  },
-  {
-    id: 5,
-    ticketNumber: 'MAINT-005',
-    room: '203B',
-    issue: 'WiFi connectivity issues',
-    description: 'Unable to connect to internet, signal very weak',
-    reportedBy: 'Lisa Anderson',
-    reportedDate: '2024-01-20 03:45 PM',
-    priority: 'medium',
-    status: 'in-progress',
-    assignedTo: 'Tom IT Support',
-  },
-  {
-    id: 6,
-    ticketNumber: 'MAINT-006',
-    room: '301A',
-    issue: 'Broken window',
-    description: 'Window glass cracked, needs replacement',
-    reportedBy: 'James Taylor',
-    reportedDate: '2024-01-19 04:20 PM',
-    priority: 'high',
-    status: 'in-progress',
-    assignedTo: 'Paul Maintenance',
-  },
-  {
-    id: 7,
-    ticketNumber: 'MAINT-007',
-    room: '104B',
-    issue: 'Water heater not working',
-    description: 'No hot water in bathroom',
-    reportedBy: 'Maria Garcia',
-    reportedDate: '2024-01-20 07:00 AM',
-    priority: 'high',
-    status: 'pending',
-    assignedTo: null,
-  },
-  {
-    id: 8,
-    ticketNumber: 'MAINT-008',
-    room: '205C',
-    issue: 'Noisy ceiling fan',
-    description: 'Ceiling fan making rattling noise',
-    reportedBy: 'Alex Kim',
-    reportedDate: '2024-01-19 10:30 AM',
-    priority: 'low',
-    status: 'completed',
-    assignedTo: 'John Technician',
-  },
-];
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-const priorityConfig = {
+type Priority = "high" | "medium" | "low";
+type Status = "pending" | "in-progress" | "completed";
+
+interface MaintenanceRequest {
+  id: string;
+  ticket_number: string;
+  room: string;
+  issue: string;
+  description: string;
+  reporter_name: string;
+  reporter_matric: string | null;
+  reported_date: string;
+  priority: Priority;
+  status: Status;
+  assigned_to: string | null;
+}
+
+// ─── Config ───────────────────────────────────────────────────────────────────
+
+const priorityConfig: Record<
+  Priority,
+  { dot: string; badge: string; icon: React.ElementType }
+> = {
   high: {
-    color: 'bg-red-100 text-red-800 border-red-200',
-    dotColor: 'bg-red-500',
+    dot: "#C2410C",
+    badge: "bg-red-100 text-red-700 border-red-200",
     icon: AlertTriangle,
   },
   medium: {
-    color: 'bg-orange-100 text-orange-800 border-orange-200',
-    dotColor: 'bg-orange-500',
+    dot: "#B45309",
+    badge: "bg-orange-100 text-orange-700 border-orange-200",
     icon: Clock,
   },
   low: {
-    color: 'bg-blue-100 text-blue-800 border-blue-200',
-    dotColor: 'bg-blue-500',
+    dot: "#15803D",
+    badge: "bg-green-100 text-green-700 border-green-200",
     icon: Wrench,
   },
 };
 
-const statusConfig = {
-  pending: {
-    color: 'bg-yellow-100 text-yellow-800',
-    text: 'Pending',
-  },
-  'in-progress': {
-    color: 'bg-blue-100 text-blue-800',
-    text: 'In Progress',
-  },
-  completed: {
-    color: 'bg-green-100 text-green-800',
-    text: 'Completed',
-  },
+const statusConfig: Record<Status, { badge: string; text: string }> = {
+  pending: { badge: "bg-orange-100 text-orange-700", text: "Pending" },
+  "in-progress": { badge: "bg-[#e8dcd7] text-[#5C2200]", text: "In Progress" },
+  completed: { badge: "bg-green-100 text-green-700", text: "Completed" },
 };
 
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+const FilterBtn = ({
+  children,
+  active,
+  onClick,
+}: {
+  children: React.ReactNode;
+  active?: boolean;
+  onClick?: () => void;
+}) => (
+  <button
+    onClick={onClick}
+    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+      active
+        ? "bg-[#5C2200] text-white shadow-sm"
+        : "bg-white text-[#5C2200] border border-[#e8dcd7] hover:bg-[#fdf7f4]"
+    }`}
+  >
+    {children}
+  </button>
+);
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function Maintenance() {
-  const pendingCount = maintenanceRequests.filter(r => r.status === 'pending').length;
-  const inProgressCount = maintenanceRequests.filter(r => r.status === 'in-progress').length;
-  const completedCount = maintenanceRequests.filter(r => r.status === 'completed').length;
+  const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [activeFilter, setActiveFilter] = useState<"all" | Status>("all");
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Modal State
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    type: "danger" | "warning" | "info" | "success";
+    confirmText?: string;
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    type: "info",
+  });
+
+  const closePopup = () => setModalConfig((prev) => ({ ...prev, isOpen: false }));
+  
+  const showError = (message: string) => {
+    setModalConfig({
+      isOpen: true,
+      title: "Error",
+      description: message,
+      type: "danger",
+    });
+  };
+
+  // ── Fetch all maintenance requests (admin view — no user_id filter) ──
+  const fetchRequests = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const { data, error: fetchError } = await supabase
+        .from("maintenance_view")
+        .select("*")
+        .order("reported_date", { ascending: false });
+
+      if (fetchError) throw fetchError;
+
+      const formattedData = (data || []).map((item: any) => ({
+        ...item,
+        id: item.request_id, // Map request_id from view to id for the component
+      }));
+
+      setRequests(formattedData as MaintenanceRequest[]);
+    } catch (err: any) {
+      setError(err.message || "Failed to load maintenance requests.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  const handleStatusUpdate = async (id: string, newStatus: Status) => {
+    setUpdatingId(id);
+    try {
+      const { error: updateError } = await supabase
+        .from("maintenance_requests")
+        .update({ status: newStatus })
+        .eq("id", id);
+
+      if (updateError) throw updateError;
+
+      // Update local state
+      setRequests((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r)),
+      );
+    } catch (err: any) {
+      console.error("Error updating status:", err);
+      showError("Failed to update status. Please try again.");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const confirmDelete = (id: string) => {
+    setModalConfig({
+      isOpen: true,
+      title: "Delete Request",
+      description: "Are you sure you want to delete this maintenance request? This action cannot be undone.",
+      type: "danger",
+      confirmText: "Delete",
+      onConfirm: async () => {
+        closePopup();
+        setDeletingId(id);
+        try {
+          const { error: deleteError } = await supabase
+            .from("maintenance_requests")
+            .delete()
+            .eq("id", id);
+
+          if (deleteError) throw deleteError;
+
+          setRequests((prev) => prev.filter((r) => r.id !== id));
+        } catch (err: any) {
+          console.error("Error deleting request:", err);
+          showError("Failed to delete request. Please try again.");
+        } finally {
+          setDeletingId(null);
+        }
+      },
+    });
+  };
+
+  const handleDeleteRequest = confirmDelete;
+
+  // ── Derived counts (always from full list, not filtered view) ──
+  const pendingCount = requests.filter((r) => r.status === "pending").length;
+  const inProgressCount = requests.filter(
+    (r) => r.status === "in-progress",
+  ).length;
+  const completedCount = requests.filter(
+    (r) => r.status === "completed",
+  ).length;
+
+  // ── Client-side status filter ──
+  const visible =
+    activeFilter === "all"
+      ? requests
+      : requests.filter((r) => r.status === activeFilter);
 
   return (
-    <div className="p-6">
-      <div className="mb-8">
-        <div className="relative h-40 rounded-xl overflow-hidden mb-6">
-          <img
-            src="https://images.pexels.com/photos/5691608/pexels-photo-5691608.jpeg?auto=compress&cs=tinysrgb&w=1200"
-            alt="Maintenance"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 to-slate-900/40 flex items-center">
-            <div className="px-8">
-              <h1 className="text-3xl font-bold text-white mb-1">Maintenance Management</h1>
-              <p className="text-gray-200">Track and resolve maintenance requests</p>
-            </div>
-          </div>
+    <div className="p-6 space-y-6">
+      {/* ── Banner ── */}
+      <div className="relative overflow-hidden rounded-2xl bg-[#5C2200]">
+        <img
+          src="https://images.pexels.com/photos/5691608/pexels-photo-5691608.jpeg?auto=compress&cs=tinysrgb&w=1200"
+          alt="Maintenance"
+          className="absolute inset-0 w-full h-full object-cover opacity-15"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#5C2200]/90 via-[#5C2200]/70 to-[#5C2200]/50" />
+        <div className="relative px-8 py-7">
+          <p className="text-xs font-semibold uppercase tracking-widest text-orange-200 mb-1">
+            Facilities
+          </p>
+          <h1 className="text-2xl font-extrabold text-white">
+            Maintenance Management
+          </h1>
+          <p className="mt-1 text-orange-100 text-sm">
+            Track, assign and resolve all facility requests.
+          </p>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <Clock className="w-6 h-6 text-yellow-600" />
-              </div>
-            </div>
-            <p className="text-sm text-gray-600 mb-1">Pending Requests</p>
-            <p className="text-3xl font-bold text-gray-900">{pendingCount}</p>
-            <p className="text-xs text-yellow-600 mt-1">Awaiting assignment</p>
-          </div>
-
-          <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Wrench className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-            <p className="text-sm text-gray-600 mb-1">In Progress</p>
-            <p className="text-3xl font-bold text-gray-900">{inProgressCount}</p>
-            <p className="text-xs text-blue-600 mt-1">Being resolved</p>
-          </div>
-
-          <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-            <p className="text-sm text-gray-600 mb-1">Completed</p>
-            <p className="text-3xl font-bold text-gray-900">{completedCount}</p>
-            <p className="text-xs text-green-600 mt-1">This week</p>
-          </div>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-          <div className="flex flex-wrap gap-2">
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-              All Requests
-            </button>
-            <button className="px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors border border-gray-200">
-              Pending
-            </button>
-            <button className="px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors border border-gray-200">
-              In Progress
-            </button>
-            <button className="px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors border border-gray-200">
-              Completed
-            </button>
-          </div>
-          <div className="flex gap-2">
-            <button className="px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors border border-gray-200 flex items-center gap-2">
-              <Filter className="w-4 h-4" />
-              Filter
-            </button>
-            <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              New Request
-            </button>
-          </div>
-        </div>
+        <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-white/10 blur-xl" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {maintenanceRequests.map((request) => {
-          const PriorityIcon = priorityConfig[request.priority as keyof typeof priorityConfig].icon;
+      {/* ── Stat blocks ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          {
+            label: "Pending Requests",
+            value: pendingCount,
+            sub: "Awaiting assignment",
+            icon: Clock,
+            iconBg: "bg-[#7A3010]",
+          },
+          {
+            label: "In Progress",
+            value: inProgressCount,
+            sub: "Being resolved",
+            icon: Wrench,
+            iconBg: "bg-[#5C2200]",
+          },
+          {
+            label: "Completed",
+            value: completedCount,
+            sub: "This week",
+            icon: CheckCircle,
+            iconBg: "bg-[#7A3010]",
+          },
+        ].map((s) => {
+          const Icon = s.icon;
           return (
             <div
-              key={request.id}
-              className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow"
+              key={s.label}
+              className="bg-white rounded-xl border border-[#e8dcd7] shadow-sm p-5"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-start gap-3">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${priorityConfig[request.priority as keyof typeof priorityConfig].color} border`}>
-                    <PriorityIcon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">{request.issue}</h3>
-                    <p className="text-sm text-gray-500 font-mono">{request.ticketNumber}</p>
-                  </div>
-                </div>
-                <span className={`px-3 py-1 text-xs font-semibold rounded-full ${statusConfig[request.status as keyof typeof statusConfig].color}`}>
-                  {statusConfig[request.status as keyof typeof statusConfig].text}
-                </span>
+              <div
+                className={`${s.iconBg} w-10 h-10 rounded-lg flex items-center justify-center mb-3`}
+              >
+                <Icon className="w-5 h-5 text-white" />
               </div>
-
-              <p className="text-sm text-gray-600 mb-4 leading-relaxed">
-                {request.description}
+              <p className="text-2xl font-bold text-slate-900">
+                {loading ? "—" : s.value}
               </p>
-
-              <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-gray-100">
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Room</p>
-                  <p className="text-sm font-semibold text-gray-900">{request.room}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Priority</p>
-                  <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded ${priorityConfig[request.priority as keyof typeof priorityConfig].color} border`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${priorityConfig[request.priority as keyof typeof priorityConfig].dotColor}`}></span>
-                    {request.priority}
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Reported by:</span>
-                  <span className="font-medium text-gray-900">{request.reportedBy}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Reported:</span>
-                  <span className="text-gray-900">{request.reportedDate}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Assigned to:</span>
-                  <span className="font-medium text-gray-900">
-                    {request.assignedTo || <span className="text-orange-600">Unassigned</span>}
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-4 border-t border-gray-100 flex gap-2">
-                <button className="flex-1 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors font-medium text-sm">
-                  Update Status
-                </button>
-                <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm">
-                  Details
-                </button>
-              </div>
+              <p className="text-sm text-[#b89080] mt-0.5">{s.label}</p>
+              <p className="text-xs text-[#5C2200] mt-1">{s.sub}</p>
             </div>
           );
         })}
       </div>
+
+      {/* ── Toolbar ── */}
+      <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
+        <div className="flex flex-wrap gap-2">
+          {(["all", "pending", "in-progress", "completed"] as const).map(
+            (f) => (
+              <FilterBtn
+                key={f}
+                active={activeFilter === f}
+                onClick={() => setActiveFilter(f)}
+              >
+                {f === "all"
+                  ? "All Requests"
+                  : (statusConfig[f as Status]?.text ?? f)}
+              </FilterBtn>
+            ),
+          )}
+        </div>
+        <div className="flex gap-2">
+          <button className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-white text-[#5C2200] border border-[#e8dcd7] rounded-lg hover:bg-[#fdf7f4] transition-colors">
+            <Filter className="w-4 h-4" />
+            Filter
+          </button>
+          <button className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-[#5C2200] text-white rounded-lg hover:bg-[#7A3010] transition-colors shadow-sm">
+            <Plus className="w-4 h-4" />
+            New Request
+          </button>
+        </div>
+      </div>
+
+      {/* ── Loading state ── */}
+      {loading && (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-7 h-7 text-[#5C2200] animate-spin" />
+        </div>
+      )}
+
+      {/* ── Error state ── */}
+      {!loading && error && (
+        <div className="rounded-lg bg-rose-50 border border-rose-100 px-4 py-3 text-sm text-rose-700">
+          {error}
+        </div>
+      )}
+
+      {/* ── Empty state ── */}
+      {!loading && !error && visible.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <Wrench className="w-10 h-10 text-[#e8dcd7] mb-3" />
+          <p className="text-slate-500 text-sm">
+            No maintenance requests found.
+          </p>
+        </div>
+      )}
+
+      {/* ── Request cards grid ── */}
+      {!loading && !error && visible.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {visible.map((r) => {
+            const pCfg = priorityConfig[r.priority];
+            const sCfg = statusConfig[r.status];
+            const PriorityIcon = pCfg.icon;
+
+            return (
+              <div
+                key={r.id}
+                className="bg-white rounded-xl border border-[#e8dcd7] shadow-sm p-5 hover:shadow-md transition-shadow"
+              >
+                {/* Card header */}
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`w-9 h-9 rounded-lg flex items-center justify-center border shrink-0 ${pCfg.badge}`}
+                    >
+                      <PriorityIcon className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900">
+                        {r.issue}
+                      </h3>
+                      <p className="text-xs font-mono text-[#b89080] mt-0.5">
+                        {r.ticket_number}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span
+                      className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${sCfg.badge}`}
+                    >
+                      {sCfg.text}
+                    </span>
+                    <button
+                      onClick={() => handleDeleteRequest(r.id)}
+                      disabled={deletingId === r.id}
+                      className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                      title="Delete request"
+                    >
+                      {deletingId === r.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <p className="text-sm text-slate-500 mb-4 leading-relaxed">
+                  {r.description}
+                </p>
+
+                {/* Room + priority row */}
+                <div className="grid grid-cols-2 gap-3 pb-4 mb-4 border-b border-[#e8dcd7]">
+                  <div>
+                    <p className="text-xs text-[#b89080] mb-1">Room</p>
+                    <span className="px-2.5 py-0.5 bg-[#fdf7f4] text-[#5C2200] border border-[#e8dcd7] rounded text-xs font-semibold">
+                      {r.room}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[#b89080] mb-1">Priority</p>
+                    <span
+                      className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded border ${pCfg.badge}`}
+                    >
+                      <span
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{ background: pCfg.dot }}
+                      />
+                      {r.priority}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Meta */}
+                <div className="space-y-1.5 text-sm mb-4">
+                  <div className="flex justify-between">
+                    <span className="text-[#b89080]">Reported by:</span>
+                    <span className="font-medium text-slate-900 text-right">
+                      {r.reporter_name}
+                      {r.reporter_matric && (
+                        <span className="block text-[10px] text-[#b89080] font-normal uppercase">
+                          {r.reporter_matric}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#b89080]">Reported:</span>
+                    <span className="font-medium text-slate-900">
+                      {r.reported_date
+                        ? new Date(r.reported_date).toLocaleString()
+                        : "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#b89080]">Assigned to:</span>
+                    <span
+                      className={`font-medium ${!r.assigned_to ? "text-orange-600" : "text-slate-900"}`}
+                    >
+                      {r.assigned_to ?? "Unassigned"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-col gap-2 pt-4 border-t border-[#e8dcd7]">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-[#b89080] uppercase tracking-wider">
+                      Update Status:
+                    </span>
+                    <div className="flex gap-1.5 flex-1">
+                      {(
+                        ["pending", "in-progress", "completed"] as Status[]
+                      ).map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => handleStatusUpdate(r.id, s)}
+                          disabled={updatingId === r.id || r.status === s}
+                          className={`flex-1 py-1.5 rounded text-[10px] font-bold uppercase tracking-tight transition-all ${
+                            r.status === s
+                              ? "bg-[#5C2200] text-white"
+                              : "bg-[#fdf7f4] text-[#5C2200] border border-[#e8dcd7] hover:bg-[#e8dcd7]"
+                          } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                          {updatingId === r.id && r.status !== s ? (
+                            <Loader2 className="w-3 h-3 animate-spin mx-auto" />
+                          ) : (
+                            s.replace("-", " ")
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Popup Modal */}
+      <PopupModal
+        isOpen={modalConfig.isOpen}
+        onClose={closePopup}
+        title={modalConfig.title}
+        description={modalConfig.description}
+        type={modalConfig.type}
+        confirmText={modalConfig.confirmText}
+        onConfirm={modalConfig.onConfirm}
+      />
     </div>
   );
 }

@@ -1,35 +1,53 @@
-import { Menu, Bell, Search } from 'lucide-react';
+import { Menu, Bell, Home } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import NotificationsPopover from './NotificationsPopover';
 
 interface HeaderProps {
   onMenuClick: () => void;
 }
 
 export default function Header({ onMenuClick }: HeaderProps) {
+  const { user } = useAuth();
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Admin';
+  const initials = displayName
+    .split(' ')
+    .map((n: string) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shadow-sm">
+    <header className="h-16 bg-white border-b border-[#e8dcd7] flex items-center justify-between px-6 shadow-sm shrink-0">
       <div className="flex items-center gap-4">
         <button
           onClick={onMenuClick}
-          className="lg:hidden text-gray-600 hover:text-gray-900"
+          className="lg:hidden text-[#b89080] hover:text-[#5C2200] transition-colors"
         >
-          <Menu className="w-6 h-6" />
+          <Menu className="w-5 h-5" />
         </button>
 
-        <div className="hidden md:flex items-center gap-2 bg-gray-100 rounded-lg px-4 py-2 w-96">
-          <Search className="w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search residents, rooms, bookings..."
-            className="bg-transparent outline-none text-sm w-full"
-          />
-        </div>
+        <p className="hidden md:block text-sm text-slate-500">
+          Welcome back, <span className="font-semibold text-[#5C2200]">{displayName}</span>
+        </p>
       </div>
 
-      <div className="flex items-center gap-4">
-        <button className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg">
-          <Bell className="w-6 h-6" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-        </button>
+      <div className="flex items-center gap-3">
+        <Link
+          to="/"
+          className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#5C2200] bg-[#fdf7f4] border border-[#e8dcd7] rounded-lg hover:bg-[#e8dcd7] transition-colors"
+        >
+          <Home className="w-3.5 h-3.5" />
+          Home
+        </Link>
+
+        {/* Notifications */}
+        <NotificationsPopover />
+
+        {/* Avatar */}
+        <div className="w-8 h-8 rounded-full bg-[#5C2200] flex items-center justify-center text-white text-xs font-bold">
+          {initials}
+        </div>
       </div>
     </header>
   );
