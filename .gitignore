@@ -1,3 +1,4 @@
+# ─── Logs ─────────────────────────────────────────────────────────────────────
 logs
 *.log
 npm-debug.log*
@@ -6,18 +7,61 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# ─── Dependencies ─────────────────────────────────────────────────────────────
 node_modules
+.pnp
+.pnp.js
+
+# ─── Build outputs ────────────────────────────────────────────────────────────
 dist
 dist-ssr
-*.local
+build
+out
 
+# ─── Environment files — NEVER commit these ───────────────────────────────────
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+*.env
+*.env.*
+
+# ─── IDE & Editor configs ─────────────────────────────────────────────────────
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-.env
+
+# ─── Bolt.new IDE files ───────────────────────────────────────────────────────
+.bolt
+
+# ─── OS generated ─────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ─── TypeScript ───────────────────────────────────────────────────────────────
+*.tsbuildinfo
+
+# ─── Cache ────────────────────────────────────────────────────────────────────
+.cache
+.parcel-cache
+.vite
+
+# ─── Coverage ─────────────────────────────────────────────────────────────────
+coverage
+*.lcov
+.nyc_output
